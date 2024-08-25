@@ -13,6 +13,7 @@ use crate::{model::{User, Task, Session, session::LoginRequest, user::Team}, res
 pub trait Logic {
 
     async fn get_user(&self, id: u32) -> Option<User>;
+    async fn refresh_user(&self, user: Arc<Mutex<User>>) -> ();
     async fn find_user_by_username(&self, username: &String) -> Option<User>;
     async fn get_all_users(&self) -> Vec<User>;
     async fn get_task(&self, id: u32) -> Option<Task>;
@@ -39,14 +40,19 @@ pub type ApplicationLogicError = String;
 
 impl ApplicationLogic {
     pub async fn new() -> Result<ApplicationLogic, ApplicationLogicError> {
-        let db_client = Arc::new(Neo4JClient::connect().await?);
+        /*let db_client = Arc::new(Neo4JClient::connect().await?);
 
         let user_repo = UserRepository::new(db_client.clone());
         let session_repo = SessionRepository::new(db_client.clone());
         let task_repo = TaskRepository::new(db_client.clone());
-        let team_repo = TeamRepository::new(db_client.clone());
+        let team_repo = TeamRepository::new(db_client.clone());*/
 
-        let relation_repo = RelationRepository::new(db_client.clone());
+        let user_repo = UserRepository::new(Arc::new(Neo4JClient::connect().await?));
+        let session_repo = SessionRepository::new(Arc::new(Neo4JClient::connect().await?));
+        let task_repo = TaskRepository::new(Arc::new(Neo4JClient::connect().await?));
+        let team_repo = TeamRepository::new(Arc::new(Neo4JClient::connect().await?));
+
+        let relation_repo = RelationRepository::new(Arc::new(Neo4JClient::connect().await?));
 
         Ok(ApplicationLogic { user_repo, session_repo, task_repo, team_repo, relation_repo })
     }
@@ -149,6 +155,13 @@ impl Logic for ApplicationLogic {
             }
         }
 
+    }
+
+    async fn refresh_user(&self, user: Arc<Mutex<User>>) -> () {
+        let result = self.user_repo.fill_user(user.clone()).await;
+        if result.is_err() {
+            println!("Unable to refresh user: {}", result.unwrap_err());
+        }
     }
     
     async fn create_and_add_user(&self, username: String, display_name: String, password: String, is_admin: bool) -> Result<Arc<Mutex<User>>, String> {

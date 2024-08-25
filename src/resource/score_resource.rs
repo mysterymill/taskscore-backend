@@ -7,6 +7,7 @@ use rocket::State;
 use rocket_okapi::openapi;
 use crate::logic::logic::{Logic, ApplicationLogic};
 use crate::model::{Score, Session};
+use crate::repository;
 
 #[openapi(tag = "Score")]
 #[post("/score/<task_id>")]
@@ -28,6 +29,9 @@ pub async fn get_score_of_user<'a>(user_id: u32, repository: &State<ApplicationL
 
 #[openapi(tag = "Score")]
 #[get("/score")]
-pub async fn get_score_of_current_user<'a>(session: Session) -> Json<Vec<Arc<Score>>> {
-    Json(session.user.lock().unwrap().scores.iter().map(|s| s.clone()).collect())
+pub async fn get_score_of_current_user<'a>(session: Session, repository: &State<ApplicationLogic>) -> Json<Vec<Arc<Score>>> {
+    let user = session.user;
+    repository.refresh_user(user.clone()).await;
+
+    Json(user.clone().lock().unwrap().scores.iter().map(|s| s.clone()).collect())
 }

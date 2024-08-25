@@ -1,11 +1,11 @@
 
-use std::fmt::Display;
+use std::{fmt::Display, sync::{Arc, Mutex}};
 
 use bolt_client::bolt_proto::value::Node;
 use chrono::{DateTime, Utc};
 use rocket_okapi::okapi::schemars::JsonSchema;
 
-use super::entity::{Entity, FromInput};
+use super::{entity::{Entity, FromInput, Relation}, User};
 
 #[derive(serde::Serialize, Clone, JsonSchema, Debug)]
 pub struct Task {
@@ -64,14 +64,22 @@ impl TryFrom<FromInput> for Task {
 
 #[derive(serde::Serialize, Clone, JsonSchema, Debug)]
 pub struct Score {
-    pub task: Task,
+    pub task: Arc<Mutex<Task>>,
     pub points: u16,
     pub scored_at: DateTime::<Utc>,
 }
 
 impl Score {
-    pub fn new(task: Task) -> Score {
-        let points = task.points.clone();
-        Score { task, points, scored_at: chrono::Utc::now()}
+    pub fn new(task: Arc<Mutex<Task>>) -> Score {
+        let points = task.lock().unwrap().points.clone();
+        Score { task: task.clone(), points, scored_at: chrono::Utc::now()}
+    }
+}
+
+impl From<Relation<User, Task>> for Score {
+    
+    fn from(value: Relation<User, Task>) -> Self {
+        let task = value.target_node;
+        Score::new(task.clone())
     }
 }

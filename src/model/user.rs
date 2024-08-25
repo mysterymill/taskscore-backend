@@ -35,13 +35,6 @@ impl User {
         User {id: None, display_name: "Guy Incognito".to_owned(), is_admin: true, points: 9, pwd_hash: None, scores: vec![], username: "guyincognito".to_owned()}
     }
 
-    pub fn score_task<'a>(& mut self, task: Task) {
-        self.points += task.points;
-
-        let score = Score::new(task);
-        self.scores.push(Arc::new(score));
-    }
-
     pub fn set_password(&mut self, password: String) {
         self.pwd_hash = Some(bcrypt::hash(password, DEFAULT_COST).unwrap());
     }

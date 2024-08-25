@@ -266,7 +266,8 @@ impl Neo4JClient {
             }
         }
 
-        let run_result = client.run(statement, params_opt, None).await;
+        let inter = client.run(statement, params_opt, None);
+        let run_result = inter.await;
         
         if run_result.is_err() {
             let com_err = run_result.unwrap_err();
@@ -372,7 +373,7 @@ impl DbClient for Neo4JClient {
 
     async fn fetch_by_id<E: Entity> (&self, id: &E::I) -> Result<Option<E>, DbActionError> {
         let statement = format!("MATCH (e: {}) WHERE id(e) = $id RETURN e", E::get_node_type_name());
-        let params = Params::from_iter(vec![("id", id.to_string())]);
+        let params = Params::from_iter(vec![("id", Value::Integer(id.clone().into()))]);
 
         self.fetch_single(statement, params).await
     }

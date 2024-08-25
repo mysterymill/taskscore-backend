@@ -1,8 +1,8 @@
-use std::{sync::Arc};
+use std::{sync::{Arc, Mutex}};
 
 use bolt_client::{Params, bolt_proto::Value};
 
-use crate::{model::{User}};
+use crate::{model::{User, Task, entity::Relation}};
 use crate::model::entity::{Entity};
 
 use super::{client::{Neo4JClient, DbClient}, repository::{ReadRepository, DbActionError, ModifyRepository, WriteRepository, ReadAllRepository}};
@@ -23,6 +23,19 @@ impl  UserRepository {
         let result = self.client.fetch_single::<User>(statement, params).await;
 
         result
+    }
+
+    pub async fn fill_user(&self, user: Arc<Mutex<User>>) -> Result<(), DbActionError> {
+        let fetch_result = self.client.fetch_relations_of_node_of_type(user.clone(), &"SCORED".to_owned()).await;
+
+        if (fetch_result.is_err()) {
+            return Err(fetch_result.unwrap_err());
+        }
+
+        let scores_relations: Vec<Relation<User, Task>> = fetch_result.unwrap();
+        user.lock().unwrap().scores = scores_relations.into_iter().map(|relation| Arc::new(relation.into())).collect();
+
+        Ok(())
     }
 }
 
